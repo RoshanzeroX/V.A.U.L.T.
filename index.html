@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>V.A.U.L.T. Pro Max</title>
+    <title>V.A.U.L.T.</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -13,200 +13,516 @@
     <div id="root"></div>
 
     <script type="text/babel">
-    
-    // --- นำ LineChart กลับมาแล้วครับ ---
-    function LineChart({data}){
-        const ref = React.useRef();
-        React.useEffect(() => {
-            const ctx = ref.current.getContext("2d");
-            ctx.clearRect(0, 0, 300, 150);
-            if(data.length === 0) return;
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    function formatCurrency(value) {
+        return new Intl.NumberFormat("th-TH").format(value || 0);
+    }
+
+    function buildMonthKey(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    function getMonthLabel(month) {
+        const [year, monthNumber] = month.split("-").map(Number);
+        const date = new Date(year, monthNumber - 1, 1);
+        return new Intl.DateTimeFormat("th-TH", {
+            month: "long",
+            year: "numeric",
+        }).format(date);
+    }
+
+    function escapeCSV(value) {
+        const text = String(value ?? "");
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function createEntryId() {
+        if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+        return `entry-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function normalizeMonthData(raw) {
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+        const normalized = {};
+        Object.entries(raw).forEach(([dayKey, entries]) => {
+            if (!Array.isArray(entries)) return;
+
+            normalized[dayKey] = entries
+                .filter((entry) => entry && typeof entry === "object")
+                .map((entry) => ({
+                    id: entry.id || createEntryId(),
+                    text: typeof entry.text === "string" ? entry.text : "",
+                    amount: Number(entry.amount) || 0,
+                    type: entry.type === "income" ? "income" : "expense",
+                }));
+        });
+
+        return normalized;
+    }
+
+    function LineChart({ data }) {
+        const ref = useRef(null);
+
+        useEffect(() => {
+            const canvas = ref.current;
+            if (!canvas) return;
+
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, 320, 180);
+            if (data.length === 0) return;
 
             const max = Math.max(...data);
             const min = Math.min(...data);
             const range = (max - min) || 1;
 
-            // วาดเส้นกราฟ
             ctx.beginPath();
-            const gradient = ctx.createLinearGradient(0, 0, 300, 0);
-            gradient.addColorStop(0, "#6366f1");
-            gradient.addColorStop(1, "#a855f7");
-            
-            ctx.strokeStyle = gradient;
+            const strokeGradient = ctx.createLinearGradient(0, 0, 320, 0);
+            strokeGradient.addColorStop(0, "#8b5cf6");
+            strokeGradient.addColorStop(0.5, "#38bdf8");
+            strokeGradient.addColorStop(1, "#22c55e");
+            ctx.strokeStyle = strokeGradient;
             ctx.lineWidth = 4;
             ctx.lineJoin = "round";
             ctx.lineCap = "round";
 
-            data.forEach((v, i) => {
-                const x = (i / (data.length - 1)) * 300;
-                const y = 150 - ((v - min) / range) * 110 - 20;
-                if(i === 0) ctx.moveTo(x, y);
+            data.forEach((value, index) => {
+                const x = data.length === 1 ? 160 : (index / (data.length - 1)) * 320;
+                const y = 150 - ((value - min) / range) * 110;
+                if (index === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             });
             ctx.stroke();
 
-            // ใส่เงาใต้เส้น (Area Effect)
-            ctx.lineTo(300, 150);
-            ctx.lineTo(0, 150);
-            ctx.fillStyle = "rgba(99, 102, 241, 0.1)";
+            ctx.lineTo(320, 180);
+            ctx.lineTo(0, 180);
+            ctx.closePath();
+
+            const fillGradient = ctx.createLinearGradient(0, 0, 0, 180);
+            fillGradient.addColorStop(0, "rgba(139, 92, 246, 0.32)");
+            fillGradient.addColorStop(0.7, "rgba(56, 189, 248, 0.08)");
+            fillGradient.addColorStop(1, "rgba(34, 197, 94, 0)");
+            ctx.fillStyle = fillGradient;
             ctx.fill();
         }, [data]);
 
         return (
-            <div style={{marginTop: '10px'}}>
-                <canvas ref={ref} width="300" height="150" style={{width:'100%', height:'150px'}} />
+            <div className="chart-shell">
+                <canvas ref={ref} width="320" height="180" style={{ width: "100%", height: "180px" }} />
             </div>
         );
     }
 
-    function App(){
+    function App() {
         const today = new Date();
-        const [month, setMonth] = React.useState(today.toISOString().slice(0, 7));
-        const [day, setDay] = React.useState(today.getDate());
-        const [data, setData] = React.useState({});
-        const [text, setText] = React.useState("");
-        const [amount, setAmount] = React.useState("");
-        const [search, setSearch] = React.useState("");
-        const [editIndex, setEditIndex] = React.useState(null);
+        const [month, setMonth] = useState(buildMonthKey(today));
+        const [day, setDay] = useState(today.getDate());
+        const [data, setData] = useState({});
+        const [text, setText] = useState("");
+        const [amount, setAmount] = useState("");
+        const [search, setSearch] = useState("");
+        const [editId, setEditId] = useState(null);
+        const [message, setMessage] = useState({ type: "", text: "" });
 
-        const days = new Date(month.split("-")[0], month.split("-")[1], 0).getDate();
+        const [year, monthNumber] = month.split("-").map(Number);
+        const days = new Date(year, monthNumber, 0).getDate();
 
-        React.useEffect(() => {
+        useEffect(() => {
+            if (day > days) {
+                setDay(days);
+                setEditId(null);
+            }
+        }, [day, days]);
+
+        useEffect(() => {
             const saved = localStorage.getItem(month);
-            setData(saved ? JSON.parse(saved) : {});
+            if (!saved) {
+                setData({});
+                setEditId(null);
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(saved);
+                setData(normalizeMonthData(parsed));
+            } catch {
+                setData({});
+                setMessage({
+                    type: "warning",
+                    text: "ข้อมูลเดือนนี้อ่านไม่ได้ ระบบรีเซ็ตเป็นค่าว่างให้แล้ว",
+                });
+            }
+
+            setEditId(null);
         }, [month]);
 
-        React.useEffect(() => {
+        useEffect(() => {
             localStorage.setItem(month, JSON.stringify(data));
         }, [data, month]);
 
-        const addOrUpdate = (type) => {
-            if(!amount || isNaN(amount)) return;
-            const d = { ...data };
-            if(!d[day]) d[day] = [];
+        useEffect(() => {
+            if (!message.text) return;
+            const timer = window.setTimeout(() => {
+                setMessage({ type: "", text: "" });
+            }, 2600);
+            return () => window.clearTimeout(timer);
+        }, [message]);
 
-            if (editIndex !== null) {
-                d[day][editIndex] = { text: text || d[day][editIndex].text, amount: Number(amount), type };
-                setEditIndex(null);
-            } else {
-                d[day].push({ text: text || (type === "income" ? "รายรับ" : "รายจ่าย"), amount: Number(amount), type });
-            }
-            setData(d); setText(""); setAmount("");
-        };
+        const allItems = useMemo(() => Object.values(data).flat(), [data]);
+        const totalIn = useMemo(
+            () => allItems.filter((entry) => entry.type === "income").reduce((sum, entry) => sum + entry.amount, 0),
+            [allItems]
+        );
+        const totalOut = useMemo(
+            () => allItems.filter((entry) => entry.type === "expense").reduce((sum, entry) => sum + entry.amount, 0),
+            [allItems]
+        );
+        const balance = totalIn - totalOut;
 
-        const startEdit = (i) => {
-            const item = data[day][i];
-            setText(item.text);
-            setAmount(item.amount);
-            setEditIndex(i);
-            window.scrollTo({ top: 400, behavior: 'smooth' }); // เลื่อนไปที่ฟอร์มกรอก
-        };
-
-        const remove = (i) => {
-            if(confirm("ลบรายการนี้?")) {
-                const d = {...data};
-                d[day].splice(i,1);
-                setData({...d});
-            }
-        };
-
-        const exportCSV = () => {
-            let csv = "\uFEFFวันที่,รายละเอียด,ประเภท,จำนวน\n";
-            Object.keys(data).sort().forEach(d => {
-                data[d].forEach(item => {
-                    csv += `${d},${item.text},${item.type === 'income' ? 'รายรับ' : 'รายจ่าย'},${item.amount}\n`;
-                });
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `V.A.U.L.T_${month}.csv`;
-            link.click();
-        };
-
-        const allItems = Object.values(data).flat();
-        const totalIn = allItems.filter(e => e.type === "income").reduce((s, e) => s + e.amount, 0);
-        const totalOut = allItems.filter(e => e.type === "expense").reduce((s, e) => s + e.amount, 0);
-
-        // คำนวณข้อมูลกราฟ (Daily Cumulative)
-        const dailyBalances = Array.from({ length: days }, (_, i) => {
-            return (data[i+1] || []).reduce((s, e) => s + (e.type === "expense" ? -e.amount : e.amount), 0);
+        const dailyBalances = Array.from({ length: days }, (_, index) => {
+            return (data[index + 1] || []).reduce((sum, entry) => {
+                return sum + (entry.type === "expense" ? -entry.amount : entry.amount);
+            }, 0);
         });
-        let run = 0;
-        const chartData = dailyBalances.map(v => { run += v; return run; });
 
-        const filteredItems = (data[day] || []).filter(item => 
+        let runningBalance = 0;
+        const chartData = dailyBalances.map((value) => {
+            runningBalance += value;
+            return runningBalance;
+        });
+
+        const selectedItems = data[day] || [];
+        const editingEntry = selectedItems.find((item) => item.id === editId) || null;
+        const filteredItems = selectedItems.filter((item) =>
             item.text.toLowerCase().includes(search.toLowerCase())
         );
 
+        const incomeCount = allItems.filter((entry) => entry.type === "income").length;
+        const expenseCount = allItems.filter((entry) => entry.type === "expense").length;
+        const activeDays = Object.keys(data).filter((key) => (data[key] || []).length > 0).length;
+
+        const addOrUpdate = (type) => {
+            const parsedAmount = Number(amount);
+
+            if (!amount.trim()) {
+                setMessage({ type: "error", text: "กรุณากรอกจำนวนเงินก่อนบันทึก" });
+                return;
+            }
+
+            if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+                setMessage({ type: "error", text: "จำนวนเงินต้องมากกว่า 0" });
+                return;
+            }
+
+            if (day < 1 || day > days) {
+                setMessage({ type: "error", text: "กรุณาเลือกวันที่ที่ถูกต้องก่อน" });
+                return;
+            }
+
+            const nextData = { ...data };
+            const dayItems = [...(nextData[day] || [])];
+            const defaultLabel = type === "income" ? "รายรับ" : "รายจ่าย";
+            const nextItem = {
+                id: editId || createEntryId(),
+                text: text.trim() || defaultLabel,
+                amount: parsedAmount,
+                type,
+            };
+
+            if (editId) {
+                const targetIndex = dayItems.findIndex((item) => item.id === editId);
+                if (targetIndex === -1) {
+                    setMessage({ type: "error", text: "ไม่พบรายการที่ต้องการแก้ไขแล้ว" });
+                    setEditId(null);
+                    return;
+                }
+                dayItems[targetIndex] = nextItem;
+            } else {
+                dayItems.push(nextItem);
+            }
+
+            nextData[day] = dayItems;
+            setData(nextData);
+            setText("");
+            setAmount("");
+            setEditId(null);
+            setMessage({
+                type: "success",
+                text: editId ? "อัปเดตรายการเรียบร้อย" : "บันทึกรายการเรียบร้อย",
+            });
+        };
+
+        const startEdit = (entryId) => {
+            const item = (data[day] || []).find((entry) => entry.id === entryId);
+            if (!item) {
+                setMessage({ type: "error", text: "ไม่พบรายการสำหรับแก้ไข" });
+                return;
+            }
+
+            setText(item.text);
+            setAmount(String(item.amount));
+            setEditId(item.id);
+            setMessage({ type: "info", text: `กำลังแก้ไขรายการ "${item.text}"` });
+            document.getElementById("entry-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        };
+
+        const remove = (entryId) => {
+            const currentItems = [...(data[day] || [])];
+            const targetIndex = currentItems.findIndex((item) => item.id === entryId);
+            if (targetIndex === -1) return;
+            if (!window.confirm("ลบรายการนี้ใช่ไหม?")) return;
+
+            currentItems.splice(targetIndex, 1);
+            const nextData = { ...data };
+            if (currentItems.length === 0) delete nextData[day];
+            else nextData[day] = currentItems;
+
+            if (editId === entryId) {
+                setEditId(null);
+                setText("");
+                setAmount("");
+            }
+
+            setData(nextData);
+            setMessage({ type: "success", text: "ลบรายการเรียบร้อย" });
+        };
+
+        const exportCSV = () => {
+            const rows = [["วันที่", "รายละเอียด", "ประเภท", "จำนวนเงิน"]];
+
+            Object.keys(data)
+                .sort((a, b) => Number(a) - Number(b))
+                .forEach((dateKey) => {
+                    (data[dateKey] || []).forEach((item) => {
+                        rows.push([
+                            `${month}-${String(dateKey).padStart(2, "0")}`,
+                            item.text,
+                            item.type === "income" ? "รายรับ" : "รายจ่าย",
+                            item.amount,
+                        ]);
+                    });
+                });
+
+            const csv = "\uFEFF" + rows.map((row) => row.map(escapeCSV).join(",")).join("\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `vault-${month}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        };
+
         return (
-            <div className="container">
-                <h2>💎 V.A.U.L.T.</h2>
-
-                {/* สรุปยอดเงิน & กราฟ */}
-                <div className="glass" style={{background: 'rgba(99, 102, 241, 0.2)'}}>
-                    <div style={{textAlign: 'center', marginBottom: '15px'}}>
-                        <div className="stat-label">เงินคงเหลือเดือนนี้</div>
-                        <div style={{fontSize: '2.2rem', fontWeight: 'bold'}}>฿ {(totalIn - totalOut).toLocaleString()}</div>
+            <main className="app-shell">
+                <section className="hero-card">
+                    <div className="hero-orb hero-orb-a"></div>
+                    <div className="hero-orb hero-orb-b"></div>
+                    <div className="hero-copy">
+                        <span className="eyebrow">Virtual Assistant for Ultimate Ledger Tracking</span>
+                        <h1>V.A.U.L.T.</h1>
+                        <p>ผู้ช่วยบันทึกรายรับรายจ่ายที่สรุปภาพรวมทั้งเดือนได้ในจังหวะเดียว พร้อมฟอร์มที่แก้ไขรายการได้ลื่นและชัดเจนขึ้น</p>
+                        <div className="hero-chips">
+                            <span className="hero-chip">Track daily cashflow</span>
+                            <span className="hero-chip">Edit in place</span>
+                            <span className="hero-chip">Monthly snapshot</span>
+                        </div>
                     </div>
-                    <LineChart data={chartData} />
-                    <div className="summary-grid">
-                        <div className="stat-box"><div className="stat-label">รายรับ</div><div className="stat-value" style={{color: '#4ade80'}}>+{totalIn.toLocaleString()}</div></div>
-                        <div className="stat-box"><div className="stat-label">รายจ่าย</div><div className="stat-value" style={{color: '#fb7185'}}>-{totalOut.toLocaleString()}</div></div>
-                    </div>
-                    <button className="btn-export" onClick={exportCSV}>📥 ดาวน์โหลดรายงาน (CSV)</button>
-                </div>
 
-                {/* ปฏิทินเลือกวัน */}
-                <div className="glass">
-                    <input type="month" value={month} onChange={e => setMonth(e.target.value)} style={{marginBottom:'15px'}} />
-                    <div className="day-grid">
-                        {Array.from({ length: days }, (_, i) => (
-                            <div key={i} className={`day ${day===i+1?'active':''} ${(data[i+1]||[]).length>0?'has-data':''}`} onClick={()=>setDay(i+1)}>
-                                {i+1}
+                    <div className="hero-balance">
+                        <span>ยอดคงเหลือเดือนนี้</span>
+                        <strong>{formatCurrency(balance)} บาท</strong>
+                        <small>{getMonthLabel(month)}</small>
+                        <div className="mini-stats">
+                            <div className="mini-stat">
+                                <span>Active days</span>
+                                <strong>{activeDays}</strong>
                             </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ฟอร์มเพิ่ม/แก้ไข */}
-                <div className="glass" id="input-form">
-                    <h3 style={{margin:'0 0 12px 0', fontSize:'1rem', opacity:0.8}}>
-                        {editIndex !== null ? '📝 แก้ไขรายการ' : `➕ เพิ่มรายการวันที่ ${day}`}
-                    </h3>
-                    <div className="input-row">
-                        <input value={text} onChange={e=>setText(e.target.value)} placeholder="รายละเอียด" />
-                        <input type="number" value={amount} onChange={e=>setAmount(e.target.value)} placeholder="฿" style={{width:'110px'}} />
-                    </div>
-                    <div style={{display:'flex', gap:'8px'}}>
-                        <button className="btn-income" onClick={()=>addOrUpdate("income")}>{editIndex !== null ? 'บันทึกใหม่' : 'รายรับ'}</button>
-                        <button className="btn-expense" onClick={()=>addOrUpdate("expense")}>{editIndex !== null ? 'บันทึกใหม่' : 'รายจ่าย'}</button>
-                    </div>
-                    {editIndex !== null && <button onClick={()=>{setEditIndex(null); setText(""); setAmount("");}} style={{width:'100%', marginTop:'10px', background:'none', color:'white', opacity:0.6}}>ยกเลิก</button>}
-                </div>
-
-                {/* รายการ & ค้นหา */}
-                <div className="glass">
-                    <input className="search-bar" placeholder="🔍 ค้นหารายการ..." value={search} onChange={e=>setSearch(e.target.value)} />
-                    {filteredItems.map((e, i) => (
-                        <div key={i} className="item-card">
-                            <div style={{display:'flex', flexDirection:'column'}}>
-                                <span style={{fontSize:'0.95rem'}}>{e.text}</span>
-                                <span className="item-amount" style={{color: e.type==='income'?'#4ade80':'#fb7185'}}>
-                                    {e.type==='income'?'+':'-'} {e.amount.toLocaleString()}
-                                </span>
-                            </div>
-                            <div className="actions">
-                                <button className="btn-sm" onClick={()=>startEdit(i)}>แก้</button>
-                                <button className="btn-sm btn-del" onClick={()=>remove(i)}>ลบ</button>
+                            <div className="mini-stat">
+                                <span>Entries</span>
+                                <strong>{allItems.length}</strong>
                             </div>
                         </div>
-                    ))}
-                    {filteredItems.length === 0 && <div style={{textAlign:'center', opacity:0.4, fontSize:'0.8rem', padding:'20px'}}>ไม่พบข้อมูล</div>}
-                </div>
-            </div>
+                    </div>
+                </section>
+
+                {message.text && (
+                    <div className={`notice notice-${message.type || "info"}`}>
+                        {message.text}
+                    </div>
+                )}
+
+                <section className="dashboard-grid">
+                    <div className="glass feature-panel">
+                        <div className="section-head">
+                            <div>
+                                <span className="section-kicker">Overview</span>
+                                <h2>ภาพรวมการเงิน</h2>
+                            </div>
+                            <button className="btn-export" type="button" onClick={exportCSV}>ส่งออก CSV</button>
+                        </div>
+                        <LineChart data={chartData} />
+                        <div className="summary-grid">
+                            <div className="stat-box income">
+                                <span className="stat-label">รายรับรวม</span>
+                                <strong className="stat-value">+ {formatCurrency(totalIn)}</strong>
+                                <small>{incomeCount} รายการ</small>
+                            </div>
+                            <div className="stat-box expense">
+                                <span className="stat-label">รายจ่ายรวม</span>
+                                <strong className="stat-value">- {formatCurrency(totalOut)}</strong>
+                                <small>{expenseCount} รายการ</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="glass calendar-panel">
+                        <div className="section-head compact">
+                            <div>
+                                <span className="section-kicker">Calendar</span>
+                                <h2>เลือกวัน</h2>
+                            </div>
+                            <input
+                                className="month-input"
+                                type="month"
+                                value={month}
+                                onChange={(event) => setMonth(event.target.value)}
+                            />
+                        </div>
+                        <div className="selected-day">
+                            <span>วันที่ที่เลือก</span>
+                            <strong>{day} / {monthNumber}</strong>
+                        </div>
+                        <div className="day-grid">
+                            {Array.from({ length: days }, (_, index) => {
+                                const date = index + 1;
+                                const hasEntries = (data[date] || []).length > 0;
+                                return (
+                                    <button
+                                        key={date}
+                                        type="button"
+                                        className={`day ${day === date ? "active" : ""} ${hasEntries ? "has-data" : ""}`}
+                                        onClick={() => setDay(date)}
+                                    >
+                                        <span>{date}</span>
+                                        {hasEntries && <small>{data[date].length}</small>}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="content-grid">
+                    <div className={`glass form-panel ${editId ? "editing" : ""}`} id="entry-form">
+                        <div className="section-head compact">
+                            <div>
+                                <span className="section-kicker">Entry Form</span>
+                                <h2>{editId ? "แก้ไขรายการ" : `เพิ่มรายการวันที่ ${day}`}</h2>
+                            </div>
+                            {editId && (
+                                <button
+                                    className="ghost-button"
+                                    type="button"
+                                    onClick={() => {
+                                        setEditId(null);
+                                        setText("");
+                                        setAmount("");
+                                    }}
+                                >
+                                    ยกเลิกแก้ไข
+                                </button>
+                            )}
+                        </div>
+
+                        {editingEntry && (
+                            <div className="edit-banner">
+                                <span>Editing now</span>
+                                <strong>{editingEntry.text}</strong>
+                            </div>
+                        )}
+
+                        <label className="field">
+                            <span>รายละเอียด</span>
+                            <input
+                                value={text}
+                                onChange={(event) => setText(event.target.value)}
+                                placeholder="เช่น เงินเดือน, ค่าอาหาร, ค่าน้ำมัน"
+                            />
+                        </label>
+
+                        <label className="field">
+                            <span>จำนวนเงิน</span>
+                            <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="0.01"
+                                value={amount}
+                                onChange={(event) => setAmount(event.target.value)}
+                                placeholder="0.00"
+                            />
+                        </label>
+
+                        <div className="action-row">
+                            <button type="button" className="btn-income" onClick={() => addOrUpdate("income")}>
+                                + บันทึกรายรับ
+                            </button>
+                            <button type="button" className="btn-expense" onClick={() => addOrUpdate("expense")}>
+                                - บันทึกรายจ่าย
+                            </button>
+                        </div>
+                        <p className="form-hint">ถ้าไม่กรอกรายละเอียด ระบบจะใส่ชื่อประเภทให้อัตโนมัติ</p>
+                    </div>
+
+                    <div className="glass list-panel">
+                        <div className="section-head compact">
+                            <div>
+                                <span className="section-kicker">Daily Items</span>
+                                <h2>รายการของวันที่ {day}</h2>
+                            </div>
+                            <span className="badge">{selectedItems.length} รายการ</span>
+                        </div>
+
+                        <input
+                            className="search-bar"
+                            placeholder="ค้นหารายการของวันนี้"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                        />
+
+                        <div className="list-stack">
+                            {filteredItems.map((item) => (
+                                <article key={item.id} className={`item-card ${editId === item.id ? "active-edit" : ""}`}>
+                                    <div className="item-copy">
+                                        <span className="item-title">{item.text}</span>
+                                        <span className={`item-pill ${item.type}`}>{item.type === "income" ? "รายรับ" : "รายจ่าย"}</span>
+                                    </div>
+                                    <div className="item-side">
+                                        <strong className={`item-amount ${item.type}`}>
+                                            {item.type === "income" ? "+" : "-"} {formatCurrency(item.amount)}
+                                        </strong>
+                                        <div className="actions">
+                                            <button type="button" className="btn-sm" onClick={() => startEdit(item.id)}>แก้ไข</button>
+                                            <button type="button" className="btn-sm btn-del" onClick={() => remove(item.id)}>ลบ</button>
+                                        </div>
+                                    </div>
+                                </article>
+                            ))}
+
+                            {filteredItems.length === 0 && (
+                                <div className="empty-state">
+                                    <strong>ยังไม่มีรายการที่แสดง</strong>
+                                    <p>เพิ่มรายการใหม่ หรือปรับคำค้นหาเพื่อดูข้อมูลของวันนี้</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            </main>
         );
     }
+
     const root = ReactDOM.createRoot(document.getElementById("root"));
     root.render(<App />);
     </script>
