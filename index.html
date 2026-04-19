@@ -1,0 +1,85 @@
+import React, { useState, useMemo } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+
+const categories = ["Food", "Transport", "Rent", "Shopping", "Other"];
+
+export default function BudgetPlanner() {
+  const [income, setIncome] = useState(0);
+  const [expenses, setExpenses] = useState([]);
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState(categories[0]);
+
+  const addExpense = () => {
+    if (!amount) return;
+    setExpenses([...expenses, { amount: Number(amount), category }]);
+    setAmount("");
+  };
+
+  const totalExpense = useMemo(() => expenses.reduce((sum, e) => sum + e.amount, 0), [expenses]);
+  const balance = income - totalExpense;
+
+  const data = useMemo(() => {
+    const map = {};
+    expenses.forEach(e => {
+      map[e.category] = (map[e.category] || 0) + e.amount;
+    });
+    return Object.keys(map).map(key => ({ name: key, value: map[key] }));
+  }, [expenses]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-xl p-6">
+      <motion.h1 
+        className="text-3xl font-bold mb-6 text-center"
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+        Monthly Budget Planner
+      </motion.h1>
+
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-xl">
+          <CardContent className="p-4">
+            <h2 className="font-semibold mb-2">Income</h2>
+            <Input type="number" value={income} onChange={e => setIncome(Number(e.target.value))} />
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-xl">
+          <CardContent className="p-4">
+            <h2 className="font-semibold mb-2">Add Expense</h2>
+            <Input placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)} />
+            <select className="w-full mt-2 p-2 rounded" value={category} onChange={e => setCategory(e.target.value)}>
+              {categories.map(c => <option key={c}>{c}</option>)}
+            </select>
+            <Button className="mt-2 w-full" onClick={addExpense}>Add</Button>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/20 backdrop-blur-xl rounded-2xl shadow-xl">
+          <CardContent className="p-4">
+            <h2 className="font-semibold">Summary</h2>
+            <p>Expense: {totalExpense}</p>
+            <p>Balance: {balance}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="mt-6 bg-white/20 backdrop-blur-xl rounded-2xl shadow-xl">
+        <CardContent className="p-4 h-72">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie data={data} dataKey="value" nameKey="name" outerRadius={100}>
+                {data.map((_, index) => (
+                  <Cell key={index} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
