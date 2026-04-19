@@ -323,9 +323,9 @@
                         <h1>V.A.U.L.T.</h1>
                         <p>ผู้ช่วยบันทึกรายรับรายจ่ายที่สรุปภาพรวมทั้งเดือนได้ในจังหวะเดียว พร้อมฟอร์มที่แก้ไขรายการได้ลื่นและชัดเจนขึ้น</p>
                         <div className="hero-chips">
-                            <span className="hero-chip">Track daily cashflow</span>
-                            <span className="hero-chip">Edit in place</span>
-                            <span className="hero-chip">Monthly snapshot</span>
+                            <span className="hero-chip">ติดตามเงินเข้าออกทุกวัน</span>
+                            <span className="hero-chip">แก้ไขรายการได้ทันที</span>
+                            <span className="hero-chip">สรุปรายเดือนในหน้าเดียว</span>
                         </div>
                     </div>
 
@@ -335,11 +335,11 @@
                         <small>{getMonthLabel(month)}</small>
                         <div className="mini-stats">
                             <div className="mini-stat">
-                                <span>Active days</span>
+                                <span>วันที่มีรายการ</span>
                                 <strong>{activeDays}</strong>
                             </div>
                             <div className="mini-stat">
-                                <span>Entries</span>
+                                <span>จำนวนรายการ</span>
                                 <strong>{allItems.length}</strong>
                             </div>
                         </div>
@@ -356,7 +356,7 @@
                     <div className="glass feature-panel">
                         <div className="section-head">
                             <div>
-                                <span className="section-kicker">Overview</span>
+                                <span className="section-kicker">ภาพรวม</span>
                                 <h2>ภาพรวมการเงิน</h2>
                             </div>
                             <button className="btn-export" type="button" onClick={exportCSV}>ส่งออก CSV</button>
@@ -379,7 +379,7 @@
                     <div className="glass calendar-panel">
                         <div className="section-head compact">
                             <div>
-                                <span className="section-kicker">Calendar</span>
+                                <span className="section-kicker">ปฏิทิน</span>
                                 <h2>เลือกวัน</h2>
                             </div>
                             <input
@@ -417,7 +417,7 @@
                     <div className={`glass form-panel ${editId ? "editing" : ""}`} id="entry-form">
                         <div className="section-head compact">
                             <div>
-                                <span className="section-kicker">Entry Form</span>
+                                <span className="section-kicker">ฟอร์มบันทึก</span>
                                 <h2>{editId ? "แก้ไขรายการ" : `เพิ่มรายการวันที่ ${day}`}</h2>
                             </div>
                             {editId && (
@@ -437,7 +437,7 @@
 
                         {editingEntry && (
                             <div className="edit-banner">
-                                <span>Editing now</span>
+                                <span>กำลังแก้ไข</span>
                                 <strong>{editingEntry.text}</strong>
                             </div>
                         )}
@@ -478,7 +478,7 @@
                     <div className="glass list-panel">
                         <div className="section-head compact">
                             <div>
-                                <span className="section-kicker">Daily Items</span>
+                                <span className="section-kicker">รายการประจำวัน</span>
                                 <h2>รายการของวันที่ {day}</h2>
                             </div>
                             <span className="badge">{selectedItems.length} รายการ</span>
