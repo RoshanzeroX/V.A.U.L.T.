@@ -4,178 +4,538 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>V.A.U.L.T.</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="[unpkg.com](https://unpkg.com/react@18/umd/react.development.js)"></script>
-  <script src="[unpkg.com](https://unpkg.com/react-dom@18/umd/react-dom.development.js)"></script>
-  <script src="[unpkg.com](https://unpkg.com/@babel/standalone/babel.min.js)"></script>
-  <!-- SheetJS สำหรับ Export Excel -->
-  <script src="[cdn.sheetjs.com](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js)"></script>
+  <style>
+    /* ══════════════════════════════════════════
+       V.A.U.L.T. — Liquid-Glass Minimal UI
+       ══════════════════════════════════════════ */
+    :root {
+      --bg:      #080d14;
+      --glass:   rgba(255,255,255,0.055);
+      --glass-b: rgba(255,255,255,0.10);
+      --border:  rgba(255,255,255,0.09);
+      --border-h:rgba(255,255,255,0.18);
+      --text:    #e8f0ff;
+      --muted:   #7a90b0;
+      --accent:  #a78bfa;
+      --accent2: #38bdf8;
+      --green:   #34d399;
+      --red:     #f87171;
+      --shadow:  0 8px 40px rgba(0,0,0,0.55);
+      --radius:  20px;
+      --t:       0.22s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="light"] {
+      --bg:      #f0f4fb;
+      --glass:   rgba(255,255,255,0.62);
+      --glass-b: rgba(255,255,255,0.82);
+      --border:  rgba(0,0,0,0.07);
+      --border-h:rgba(0,0,0,0.14);
+      --text:    #0f172a;
+      --muted:   #64748b;
+      --shadow:  0 8px 40px rgba(0,0,0,0.12);
+    }
+
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    html { height:100%; }
+
+    body {
+      height: 100dvh;
+      overflow: hidden;
+      font-family: "Segoe UI","Noto Sans Thai",system-ui,sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 10%, rgba(139,92,246,.18) 0%,transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 90%, rgba(56,189,248,.14) 0%,transparent 50%),
+        var(--bg);
+      transition: background var(--t), color var(--t);
+    }
+    [data-theme="light"] body {
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 10%, rgba(167,139,250,.14) 0%,transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 90%, rgba(56,189,248,.10) 0%,transparent 50%),
+        var(--bg);
+    }
+    body::before {
+      content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='[w3.org](http://www.w3.org/2000/svg)'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      background-size:256px; opacity:.5;
+    }
+
+    /* Glass card */
+    .glass {
+      position:relative;
+      background:var(--glass);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      backdrop-filter:blur(24px) saturate(160%);
+      -webkit-backdrop-filter:blur(24px) saturate(160%);
+      box-shadow:var(--shadow), inset 0 1px 0 rgba(255,255,255,.08);
+      transition:border-color var(--t), box-shadow var(--t), background var(--t);
+      overflow:hidden;
+    }
+    .glass::before {
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(135deg,rgba(255,255,255,.06) 0%,transparent 60%);
+      border-radius:inherit;
+    }
+
+    /* Layout */
+    .layout {
+      position:relative; z-index:1;
+      display:grid;
+      grid-template-columns:220px 1fr;
+      gap:12px;
+      padding:12px;
+      height:100dvh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display:flex; flex-direction:column; gap:10px;
+      padding:16px 14px;
+      overflow-y:auto; scrollbar-width:none;
+    }
+    .sidebar::-webkit-scrollbar { display:none; }
+
+    .brand { display:flex; align-items:center; gap:9px; margin-bottom:2px; }
+    .brand-dot {
+      width:9px; height:9px; border-radius:50%; flex-shrink:0;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      box-shadow:0 0 8px var(--accent);
+    }
+    .brand-name { font-size:1rem; font-weight:800; letter-spacing:.14em; }
+
+    .balance-card {
+      background:linear-gradient(145deg,rgba(139,92,246,.22),rgba(56,189,248,.12));
+      border:1px solid rgba(167,139,250,.22);
+      border-radius:16px;
+      padding:14px 13px;
+      display:flex; flex-direction:column; gap:2px;
+    }
+    .balance-label { font-size:.7rem; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
+    .balance-amount { font-size:1.75rem; font-weight:800; line-height:1.1; word-break:break-all; }
+    .balance-unit   { font-size:.78rem; color:var(--muted); }
+    .balance-month  { font-size:.72rem; color:var(--muted); margin-top:3px; }
+
+    .side-stats { display:flex; flex-direction:column; gap:5px; }
+    .side-stat {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:8px 11px; background:rgba(255,255,255,.04);
+      border-radius:11px; border:1px solid var(--border);
+      transition:background var(--t);
+    }
+    .side-stat span  { font-size:.75rem; color:var(--muted); }
+    .side-stat strong{ font-size:.88rem; }
+    .c-green { color:var(--green); }
+    .c-red   { color:var(--red);   }
+
+    .month-wrap { display:flex; flex-direction:column; gap:4px; }
+    .month-wrap > span { font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+
+    /* Inputs */
+    input, button { font:inherit; color:var(--text); outline:none; border:none; }
+    input {
+      width:100%;
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:9px 12px;
+      transition:border-color var(--t),box-shadow var(--t),background var(--t);
+    }
+    input:focus {
+      border-color:rgba(167,139,250,.5);
+      box-shadow:0 0 0 3px rgba(167,139,250,.12);
+      background:rgba(255,255,255,.09);
+    }
+    input[type="month"]{ cursor:pointer; }
+
+    /* Buttons */
+    button {
+      cursor:pointer; border-radius:12px; padding:9px 14px;
+      font-weight:600; border:1px solid var(--border);
+      background:var(--glass);
+      backdrop-filter:blur(12px);
+      transition:transform var(--t),filter var(--t),box-shadow var(--t),background var(--t),border-color var(--t);
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;
+    }
+    button:hover  { transform:translateY(-1px); filter:brightness(1.07); border-color:var(--border-h); }
+    button:active { transform:translateY(0) scale(.97); filter:brightness(.95); }
+
+    .theme-btn  { font-size:.78rem; }
+    .export-btn {
+      margin-top:auto;
+      background:linear-gradient(135deg,rgba(52,211,153,.22),rgba(56,189,248,.18));
+      border-color:rgba(52,211,153,.28); font-size:.82rem;
+    }
+    .export-btn:hover { box-shadow:0 0 18px rgba(52,211,153,.2); }
+
+    /* Main */
+    .main-col {
+      display:grid;
+      grid-template-rows:auto 1fr;
+      gap:12px;
+      min-height:0;
+    }
+
+    /* Notice */
+    .notice {
+      padding:9px 15px; border-radius:12px; font-weight:600; font-size:.83rem;
+      backdrop-filter:blur(16px); border:1px solid transparent;
+      animation:slideIn .2s ease; flex-shrink:0;
+    }
+    .notice-success{ background:rgba(52,211,153,.12); border-color:rgba(52,211,153,.3); }
+    .notice-error  { background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.3); }
+    .notice-warning{ background:rgba(251,191, 36,.12); border-color:rgba(251,191, 36,.3); }
+    .notice-info   { background:rgba( 56,189,248,.12); border-color:rgba( 56,189,248,.3); }
+
+    /* Top row */
+    .top-row {
+      display:grid;
+      grid-template-columns:1fr 280px;
+      gap:12px;
+    }
+    .chart-panel { padding:14px 16px; }
+    .panel-label {
+      font-size:.68rem; text-transform:uppercase;
+      letter-spacing:.12em; color:var(--muted); margin-bottom:4px;
+    }
+    .chart-wrap { height:96px; margin-top:6px; }
+
+    .form-panel {
+      padding:14px; display:flex; flex-direction:column; gap:9px;
+      transition:box-shadow var(--t),border-color var(--t);
+    }
+    .form-panel.is-editing {
+      border-color:rgba(56,189,248,.35);
+      box-shadow:0 0 0 1px rgba(56,189,248,.14),var(--shadow);
+    }
+    .edit-banner {
+      padding:7px 11px; border-radius:10px;
+      background:rgba(56,189,248,.1); border:1px solid rgba(56,189,248,.2);
+      font-size:.78rem;
+    }
+    .edit-banner strong { color:var(--accent2); }
+    .form-actions { display:flex; gap:7px; }
+    .btn-income  { flex:1; background:linear-gradient(135deg,#16a34a,#34d399); border-color:rgba(52,211,153,.3); color:#fff; }
+    .btn-expense { flex:1; background:linear-gradient(135deg,#be123c,#f87171); border-color:rgba(248,113,113,.3); color:#fff; }
+    .btn-cancel  { background:rgba(255,255,255,.06); font-size:.78rem; padding:9px 11px; }
+
+    /* Bottom row */
+    .bottom-row {
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:12px;
+      min-height:0;
+    }
+
+    /* Calendar */
+    .cal-panel { padding:12px 14px; min-width:0; }
+    .day-grid {
+      display:grid;
+      grid-template-columns:repeat(7,32px);
+      gap:4px; margin-top:7px;
+    }
+    .day-btn {
+      width:32px; height:32px; border-radius:9px;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      font-size:.8rem; font-weight:500; padding:0; gap:2px;
+      background:rgba(255,255,255,.04); border-color:transparent;
+    }
+    .day-btn:hover { background:rgba(255,255,255,.10); }
+    .day-active {
+      background:linear-gradient(135deg,rgba(139,92,246,.75),rgba(79,70,229,.9)) !important;
+      border-color:rgba(196,181,253,.35) !important;
+      box-shadow:0 4px 12px rgba(79,70,229,.35); color:#fff;
+    }
+    .day-dot {
+      width:4px; height:4px; border-radius:50%;
+      background:var(--green); box-shadow:0 0 4px var(--green);
+    }
+    .day-active .day-dot { background:#fff; box-shadow:0 0 4px rgba(255,255,255,.6); }
+
+    /* List */
+    .list-panel {
+      padding:12px 14px; display:flex; flex-direction:column; gap:9px; min-height:0;
+    }
+    .list-head { display:flex; align-items:center; justify-content:space-between; }
+    .badge {
+      font-size:.7rem; font-weight:700;
+      background:rgba(255,255,255,.08); border:1px solid var(--border);
+      border-radius:999px; padding:3px 9px; color:var(--muted);
+    }
+    .search-input { flex-shrink:0; }
+    .list-scroll {
+      overflow-y:auto; display:flex; flex-direction:column; gap:7px;
+      flex:1; min-height:0; padding-right:2px;
+      scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+    }
+    .item-card {
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:9px 12px; border-radius:13px;
+      background:rgba(255,255,255,.04); border:1px solid var(--border);
+      transition:transform var(--t),border-color var(--t),background var(--t),box-shadow var(--t);
+      flex-shrink:0;
+    }
+    .item-card:hover { transform:translateY(-1px); border-color:var(--border-h); }
+    .item-card.item-editing {
+      background:rgba(56,189,248,.07); border-color:rgba(56,189,248,.28);
+      box-shadow:0 0 0 1px rgba(56,189,248,.12);
+    }
+    .item-left  { display:flex; align-items:center; gap:9px; min-width:0; }
+    .item-dot   { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .item-dot.income  { background:var(--green); box-shadow:0 0 5px var(--green); }
+    .item-dot.expense { background:var(--red);   box-shadow:0 0 5px var(--red);   }
+    .item-text  { display:block; font-size:.86rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px; }
+    .item-tag   { display:inline-block; font-size:.66rem; padding:2px 7px; border-radius:999px; margin-top:2px; }
+    .item-tag.income  { background:rgba(52,211,153,.14); color:var(--green); }
+    .item-tag.expense { background:rgba(248,113,113,.14); color:var(--red);   }
+    .item-right { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+    .item-amount{ font-size:.9rem; min-width:76px; text-align:right; font-weight:700; }
+    .item-amount.income  { color:var(--green); }
+    .item-amount.expense { color:var(--red);   }
+    .item-btns { display:flex; gap:5px; }
+    .ibtn {
+      width:27px; height:27px; border-radius:8px; padding:0;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.76rem; background:rgba(255,255,255,.06);
+    }
+    .ibtn-del { color:var(--red); }
+    .ibtn-del:hover { background:rgba(248,113,113,.15); border-color:rgba(248,113,113,.25); }
+
+    .empty {
+      flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:6px; color:var(--muted); font-size:.83rem;
+      border:1px dashed var(--border); border-radius:13px; padding:20px;
+    }
+    .empty span { font-size:1.3rem; opacity:.35; }
+
+    /* Animations */
+    @keyframes slideIn {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* Scrollbar webkit */
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:99px; }
+
+    /* ── Responsive ── */
+    @media (max-width:1100px) {
+      .top-row { grid-template-columns:1fr; }
+      .chart-wrap { height:80px; }
+    }
+    @media (max-width:900px) {
+      body { overflow:auto; height:auto; }
+      .layout { grid-template-columns:1fr; height:auto; padding:10px; }
+      .sidebar { flex-direction:row; flex-wrap:wrap; overflow:visible; padding:12px; }
+      .balance-card { flex:1 1 170px; }
+      .side-stats { flex-direction:row; flex-wrap:wrap; flex:2 1 260px; }
+      .side-stat { flex:1 1 120px; }
+      .month-wrap,.theme-btn,.export-btn { flex:0 0 auto; }
+      .export-btn { margin-top:0; }
+      .main-col { grid-template-rows:auto 1fr; }
+      .bottom-row { grid-template-columns:1fr; }
+      .cal-panel { width:100%; }
+      .day-grid { grid-template-columns:repeat(7,1fr); }
+      .day-btn { width:100%; }
+    }
+    @media (max-width:600px) {
+      .sidebar { flex-direction:column; }
+      .side-stats { flex-direction:column; }
+      .form-actions { flex-direction:column; }
+      .item-text { max-width:100px; }
+    }
+  </style>
 </head>
 <body>
   <div id="root"></div>
 
+  <!-- React + Babel -->
+  <script src="[unpkg.com](https://unpkg.com/react@18/umd/react.development.js)"></script>
+  <script src="[unpkg.com](https://unpkg.com/react-dom@18/umd/react-dom.development.js)"></script>
+  <script src="[unpkg.com](https://unpkg.com/@babel/standalone/babel.min.js)"></script>
+  <!-- SheetJS -->
+  <script src="[cdn.sheetjs.com](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js)"></script>
+
   <script type="text/babel">
     const { useEffect, useMemo, useRef, useState, useReducer, useCallback } = React;
 
-    /* ─── utils ─── */
-    function fmt(v) { return new Intl.NumberFormat("th-TH").format(v || 0); }
-    function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
-    function monthLabel(m) {
-      const [y,mo] = m.split("-").map(Number);
+    /* ── utils ── */
+    function fmt(v){ return new Intl.NumberFormat("th-TH").format(v||0); }
+    function monthKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; }
+    function monthLabel(m){
+      const [y,mo]=m.split("-").map(Number);
       return new Intl.DateTimeFormat("th-TH",{month:"long",year:"numeric"}).format(new Date(y,mo-1,1));
     }
-    function uid() {
-      return window.crypto?.randomUUID?.() ?? `e-${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+    function uid(){
+      return window.crypto?.randomUUID?.()??`e-${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
     }
-    function normalise(raw) {
-      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-      const out = {};
-      Object.entries(raw).forEach(([k,arr]) => {
-        if (!Array.isArray(arr)) return;
-        out[k] = arr.filter(Boolean).filter(e=>typeof e==="object").map(e=>({
-          id:   e.id   || uid(),
-          text: typeof e.text==="string" ? e.text : "",
+    function normalise(raw){
+      if(!raw||typeof raw!=="object"||Array.isArray(raw)) return {};
+      const out={};
+      Object.entries(raw).forEach(([k,arr])=>{
+        if(!Array.isArray(arr)) return;
+        out[k]=arr.filter(Boolean).filter(e=>typeof e==="object").map(e=>({
+          id:   e.id||uid(),
+          text: typeof e.text==="string"?e.text:"",
           amount: Number(e.amount)||0,
-          type: e.type==="income" ? "income" : "expense",
+          type: e.type==="income"?"income":"expense",
         }));
       });
       return out;
     }
 
-    /* ─── form reducer ─── */
-    const FORM0 = { text:"", amount:"", editId:null };
+    /* ── form reducer ── */
+    const FORM0={text:"",amount:"",editId:null};
     function formReducer(s,a){
       switch(a.type){
-        case "SET_TEXT":   return {...s, text:a.v};
-        case "SET_AMOUNT": return {...s, amount:a.v};
-        case "START_EDIT": return { text:a.item.text, amount:String(a.item.amount), editId:a.item.id };
+        case "SET_TEXT":   return {...s,text:a.v};
+        case "SET_AMOUNT": return {...s,amount:a.v};
+        case "START_EDIT": return {text:a.item.text,amount:String(a.item.amount),editId:a.item.id};
         case "RESET":      return FORM0;
         default:           return s;
       }
     }
 
-    /* ─── LineChart ─── */
-    function LineChart({ data, theme }) {
-      const ref = useRef(null);
+    /* ── LineChart ── */
+    function LineChart({data,theme}){
+      const ref=useRef(null);
       useEffect(()=>{
-        const c = ref.current; if(!c) return;
-        const ctx = c.getContext("2d");
-        const W=c.width, H=c.height;
+        const c=ref.current; if(!c) return;
+        const ctx=c.getContext("2d");
+        const W=c.offsetWidth||480, H=c.offsetHeight||96;
+        c.width=W; c.height=H;
         ctx.clearRect(0,0,W,H);
         if(!data.length) return;
-        const max=Math.max(...data), min=Math.min(...data), range=(max-min)||1;
-        const pts = data.map((v,i)=>({
-          x: data.length===1 ? W/2 : (i/(data.length-1))*W,
-          y: (H-20) - ((v-min)/range)*(H-30),
+        const max=Math.max(...data),min=Math.min(...data),range=(max-min)||1;
+        const pts=data.map((v,i)=>({
+          x:data.length===1?W/2:(i/(data.length-1))*W,
+          y:(H-10)-((v-min)/range)*(H-20),
         }));
-        // stroke
-        const sg = ctx.createLinearGradient(0,0,W,0);
-        sg.addColorStop(0,"#a78bfa"); sg.addColorStop(0.5,"#38bdf8"); sg.addColorStop(1,"#34d399");
+        /* stroke */
+        const sg=ctx.createLinearGradient(0,0,W,0);
+        sg.addColorStop(0,"#a78bfa"); sg.addColorStop(.5,"#38bdf8"); sg.addColorStop(1,"#34d399");
         ctx.beginPath();
-        ctx.strokeStyle=sg; ctx.lineWidth=2.5; ctx.lineJoin="round"; ctx.lineCap="round";
+        ctx.strokeStyle=sg; ctx.lineWidth=2.2; ctx.lineJoin="round"; ctx.lineCap="round";
         pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
         ctx.stroke();
-        // fill
+        /* fill */
         ctx.beginPath();
         pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
         ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
         const fg=ctx.createLinearGradient(0,0,0,H);
-        fg.addColorStop(0,"rgba(167,139,250,0.22)"); fg.addColorStop(1,"rgba(52,211,153,0)");
+        fg.addColorStop(0,"rgba(167,139,250,0.20)"); fg.addColorStop(1,"rgba(52,211,153,0)");
         ctx.fillStyle=fg; ctx.fill();
       },[data,theme]);
-      return <canvas ref={ref} width={480} height={120} style={{width:"100%",height:"100%",display:"block"}} />;
+      return (
+        <canvas
+          ref={ref}
+          style={{width:"100%",height:"100%",display:"block"}}
+        />
+      );
     }
 
-    /* ─── App ─── */
-    function App() {
-      const today = new Date();
-      const [theme,  setTheme]  = useState("dark");
-      const [month,  setMonth]  = useState(monthKey(today));
-      const [day,    setDay]    = useState(today.getDate());
-      const [data,   setData]   = useState({});
-      const [form,   dispatch]  = useReducer(formReducer, FORM0);
-      const [search, setSearch] = useState("");
-      const [notice, setNotice] = useState({type:"",text:""});
+    /* ── App ── */
+    function App(){
+      const today=new Date();
+      const [theme, setTheme]  = useState("dark");
+      const [month, setMonth]  = useState(monthKey(today));
+      const [day,   setDay]    = useState(today.getDate());
+      const [data,  setData]   = useState({});
+      const [form,  dispatch]  = useReducer(formReducer,FORM0);
+      const [search,setSearch] = useState("");
+      const [notice,setNotice] = useState({type:"",text:""});
 
-      const [y, mo] = month.split("-").map(Number);
-      const days = new Date(y, mo, 0).getDate();
+      const [y,mo] = month.split("-").map(Number);
+      const days   = new Date(y,mo,0).getDate();
 
-      /* theme */
-      useEffect(()=>{ document.documentElement.setAttribute("data-theme",theme); },[theme]);
+      /* theme toggle */
+      useEffect(()=>{
+        document.documentElement.setAttribute("data-theme",theme);
+      },[theme]);
 
       /* clamp day */
       useEffect(()=>{ if(day>days) setDay(days); },[days]);
 
-      /* load */
+      /* load month */
       useEffect(()=>{
-        const raw = localStorage.getItem(month);
         dispatch({type:"RESET"});
+        const raw=localStorage.getItem(month);
         if(!raw){ setData({}); return; }
         try { setData(normalise(JSON.parse(raw))); }
-        catch { setData({}); toast("warning","ข้อมูลเดือนนี้อ่านไม่ได้ ระบบรีเซ็ตให้แล้ว"); }
+        catch { setData({}); toast("warning","ข้อมูลเดือนนี้อ่านไม่ได้ รีเซ็ตให้แล้ว"); }
       },[month]);
 
       /* save */
       useEffect(()=>{
-        try { localStorage.setItem(month, JSON.stringify(data)); }
-        catch { toast("error","พื้นที่จัดเก็บเต็ม ไม่สามารถบันทึกได้"); }
+        try { localStorage.setItem(month,JSON.stringify(data)); }
+        catch { toast("error","พื้นที่จัดเก็บเต็ม บันทึกไม่ได้"); }
       },[data,month]);
 
       /* auto-clear notice */
       useEffect(()=>{
         if(!notice.text) return;
-        const t = setTimeout(()=>setNotice({type:"",text:""}),2600);
+        const t=setTimeout(()=>setNotice({type:"",text:""}),2600);
         return ()=>clearTimeout(t);
       },[notice]);
 
       function toast(type,text){ setNotice({type,text}); }
 
       /* derived */
-      const allItems  = useMemo(()=>Object.values(data).flat(),[data]);
-      const totalIn   = useMemo(()=>allItems.filter(e=>e.type==="income").reduce((s,e)=>s+e.amount,0),[allItems]);
-      const totalOut  = useMemo(()=>allItems.filter(e=>e.type==="expense").reduce((s,e)=>s+e.amount,0),[allItems]);
-      const balance   = totalIn - totalOut;
+      const allItems = useMemo(()=>Object.values(data).flat(),[data]);
+      const totalIn  = useMemo(()=>allItems.filter(e=>e.type==="income").reduce((s,e)=>s+e.amount,0),[allItems]);
+      const totalOut = useMemo(()=>allItems.filter(e=>e.type==="expense").reduce((s,e)=>s+e.amount,0),[allItems]);
+      const balance  = totalIn-totalOut;
 
       const chartData = useMemo(()=>{
         let run=0;
         return Array.from({length:days},(_,i)=>{
-          run += (data[i+1]||[]).reduce((s,e)=>s+(e.type==="expense"?-e.amount:e.amount),0);
+          run+=(data[i+1]||[]).reduce((s,e)=>s+(e.type==="expense"?-e.amount:e.amount),0);
           return run;
         });
       },[data,days]);
 
-      const selectedItems = data[day] || [];
+      const selectedItems = data[day]||[];
       const editingEntry  = selectedItems.find(e=>e.id===form.editId)||null;
       const filtered      = selectedItems.filter(e=>e.text.toLowerCase().includes(search.toLowerCase()));
       const activeDays    = Object.keys(data).filter(k=>(data[k]||[]).length>0).length;
 
-      /* actions */
-      const addOrUpdate = useCallback((type)=>{
-        const parsed = Number(form.amount);
+      /* add / update */
+      const addOrUpdate=useCallback((type)=>{
+        const parsed=Number(form.amount);
         if(!form.amount.trim()){ toast("error","กรุณากรอกจำนวนเงิน"); return; }
         if(isNaN(parsed)||parsed<=0){ toast("error","จำนวนเงินต้องมากกว่า 0"); return; }
 
-        const dayItems = [...(data[day]||[])];
-        const item = { id:form.editId||uid(), text:form.text.trim()||(type==="income"?"รายรับ":"รายจ่าย"), amount:parsed, type };
-
+        const dayItems=[...(data[day]||[])];
+        const item={
+          id:    form.editId||uid(),
+          text:  form.text.trim()||(type==="income"?"รายรับ":"รายจ่าย"),
+          amount:parsed, type,
+        };
         if(form.editId){
-          const idx = dayItems.findIndex(e=>e.id===form.editId);
+          const idx=dayItems.findIndex(e=>e.id===form.editId);
           if(idx===-1){ toast("error","ไม่พบรายการ"); dispatch({type:"RESET"}); return; }
           dayItems[idx]=item;
-        } else { dayItems.push(item); }
-
+        } else {
+          dayItems.push(item);
+        }
         setData(prev=>({...prev,[day]:dayItems}));
         dispatch({type:"RESET"});
-        toast("success", form.editId?"อัปเดตเรียบร้อย":"บันทึกเรียบร้อย");
+        toast("success",form.editId?"อัปเดตเรียบร้อย":"บันทึกเรียบร้อย");
       },[form,data,day]);
 
-      const startEdit = useCallback((id)=>{
+      /* start edit */
+      const startEdit=useCallback((id)=>{
         const item=(data[day]||[]).find(e=>e.id===id);
         if(!item){ toast("error","ไม่พบรายการ"); return; }
         dispatch({type:"START_EDIT",item});
       },[data,day]);
 
-      const remove = useCallback((id)=>{
+      /* remove */
+      const remove=useCallback((id)=>{
         const items=[...(data[day]||[])];
         const idx=items.findIndex(e=>e.id===id);
         if(idx===-1) return;
@@ -186,8 +546,8 @@
         toast("success","ลบเรียบร้อย");
       },[data,day,form.editId]);
 
-      /* Excel export */
-      const exportExcel = useCallback(()=>{
+      /* export excel */
+      const exportExcel=useCallback(()=>{
         const rows=[["วันที่","รายละเอียด","ประเภท","จำนวนเงิน (บาท)"]];
         Object.keys(data).sort((a,b)=>Number(a)-Number(b)).forEach(dk=>{
           (data[dk]||[]).forEach(item=>{
@@ -199,29 +559,28 @@
             ]);
           });
         });
-        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const ws=XLSX.utils.aoa_to_sheet(rows);
         ws["!cols"]=[{wch:16},{wch:28},{wch:12},{wch:20}];
-        const wb = XLSX.utils.book_new();
+        const wb=XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb,ws,monthLabel(month));
         XLSX.writeFile(wb,`vault-${month}.xlsx`);
       },[data,month]);
 
-      /* ─── JSX ─── */
+      /* ── JSX ── */
       return (
         <div className="layout">
 
-          {/* ── SIDEBAR ── */}
+          {/* SIDEBAR */}
           <aside className="sidebar glass">
             <div className="brand">
-              <span className="brand-dot" />
+              <span className="brand-dot"/>
               <span className="brand-name">V.A.U.L.T.</span>
             </div>
 
-            <button className="theme-btn" onClick={()=>setTheme(t=>t==="dark"?"light":"dark")} aria-label="toggle theme">
-              {theme==="dark" ? "☀ Light" : "☾ Dark"}
+            <button className="theme-btn" onClick={()=>setTheme(t=>t==="dark"?"light":"dark")}>
+              {theme==="dark"?"☀ Light":"☾ Dark"}
             </button>
 
-            {/* Balance */}
             <div className="balance-card">
               <span className="balance-label">ยอดคงเหลือ</span>
               <strong className="balance-amount">{fmt(balance)}</strong>
@@ -229,14 +588,13 @@
               <span className="balance-month">{monthLabel(month)}</span>
             </div>
 
-            {/* Stats */}
             <div className="side-stats">
               <div className="side-stat">
-                <span>รายรับ</span>
+                <span>รายรับรวม</span>
                 <strong className="c-green">+{fmt(totalIn)}</strong>
               </div>
               <div className="side-stat">
-                <span>รายจ่าย</span>
+                <span>รายจ่ายรวม</span>
                 <strong className="c-red">-{fmt(totalOut)}</strong>
               </div>
               <div className="side-stat">
@@ -249,52 +607,51 @@
               </div>
             </div>
 
-            {/* Month picker */}
             <label className="month-wrap">
               <span>เดือน</span>
-              <input type="month" value={month} onChange={e=>setMonth(e.target.value)} />
+              <input type="month" value={month} onChange={e=>setMonth(e.target.value)}/>
             </label>
 
             <button className="export-btn" onClick={exportExcel}>⬇ Export Excel</button>
           </aside>
 
-          {/* ── MAIN ── */}
+          {/* MAIN */}
           <main className="main-col">
 
-            {/* Notice */}
             {notice.text && (
               <div className={`notice notice-${notice.type}`} role="alert">{notice.text}</div>
             )}
 
-            {/* ── TOP ROW: Chart + Form ── */}
+            {/* TOP ROW */}
             <div className="top-row">
 
-              {/* Chart panel */}
+              {/* Chart */}
               <div className="glass chart-panel">
-                <p className="panel-label">ยอดสะสมรายวัน</p>
+                <p className="panel-label">ยอดสะสมรายวัน — {monthLabel(month)}</p>
                 <div className="chart-wrap">
-                  <LineChart data={chartData} theme={theme} />
+                  <LineChart data={chartData} theme={theme}/>
                 </div>
               </div>
 
-              {/* Form panel */}
-              <div className={`glass form-panel ${form.editId?"is-editing":""}`}>
-                <p className="panel-label">{form.editId?"✎ แก้ไขรายการ":`+ เพิ่มรายการ วันที่ ${day}`}</p>
+              {/* Form */}
+              <div className={`glass form-panel${form.editId?" is-editing":""}`}>
+                <p className="panel-label">
+                  {form.editId?"✎ แก้ไขรายการ":`+ เพิ่มรายการ วันที่ ${day}`}
+                </p>
 
                 {editingEntry && (
                   <div className="edit-banner">
-                    <span>กำลังแก้ไข: </span><strong>{editingEntry.text}</strong>
+                    <span>กำลังแก้ไข: </span>
+                    <strong>{editingEntry.text}</strong>
                   </div>
                 )}
 
                 <input
-                  className="field-input"
                   placeholder="รายละเอียด (ไม่บังคับ)"
                   value={form.text}
                   onChange={e=>dispatch({type:"SET_TEXT",v:e.target.value})}
                 />
                 <input
-                  className="field-input"
                   type="number" inputMode="decimal" min="0" step="0.01"
                   placeholder="จำนวนเงิน"
                   value={form.amount}
@@ -303,33 +660,33 @@
                 />
 
                 <div className="form-actions">
-                  <button className="btn-income" onClick={()=>addOrUpdate("income")}>รายรับ</button>
-                  <button className="btn-expense" onClick={()=>addOrUpdate("expense")}>รายจ่าย</button>
-                  {form.editId && (
+                  <button className="btn-income"  onClick={()=>addOrUpdate("income")}>+ รายรับ</button>
+                  <button className="btn-expense" onClick={()=>addOrUpdate("expense")}>− รายจ่าย</button>
+                  {form.editId&&(
                     <button className="btn-cancel" onClick={()=>dispatch({type:"RESET"})}>ยกเลิก</button>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ── BOTTOM ROW: Calendar + List ── */}
+            {/* BOTTOM ROW */}
             <div className="bottom-row">
 
               {/* Calendar */}
               <div className="glass cal-panel">
-                <p className="panel-label">ปฏิทิน — เลือกวัน</p>
+                <p className="panel-label">ปฏิทิน</p>
                 <div className="day-grid">
                   {Array.from({length:days},(_,i)=>{
-                    const d=i+1, active=d===day, hasData=(data[d]||[]).length>0;
+                    const d=i+1,active=d===day,hasData=(data[d]||[]).length>0;
                     return (
                       <button
                         key={d} type="button"
-                        className={`day-btn ${active?"day-active":""} ${hasData?"day-has":""}`}
+                        className={`day-btn${active?" day-active":""}${hasData?" day-has":""}`}
                         onClick={()=>{ setDay(d); dispatch({type:"RESET"}); }}
-                        aria-label={`วันที่ ${d}`} aria-pressed={active}
+                        aria-label={`วันที่ ${d}`}
                       >
                         {d}
-                        {hasData && <span className="day-dot"/>}
+                        {hasData&&<span className="day-dot"/>}
                       </button>
                     );
                   })}
@@ -340,7 +697,7 @@
               <div className="glass list-panel">
                 <div className="list-head">
                   <p className="panel-label" style={{margin:0}}>รายการวันที่ {day}</p>
-                  <span className="badge">{selectedItems.length}</span>
+                  <span className="badge">{selectedItems.length} รายการ</span>
                 </div>
                 <input
                   className="search-input"
@@ -350,29 +707,36 @@
                 />
                 <div className="list-scroll">
                   {filtered.map(item=>(
-                    <article key={item.id} className={`item-card ${form.editId===item.id?"item-editing":""}`}>
+                    <article
+                      key={item.id}
+                      className={`item-card${form.editId===item.id?" item-editing":""}`}
+                    >
                       <div className="item-left">
                         <span className={`item-dot ${item.type}`}/>
                         <div>
                           <span className="item-text">{item.text}</span>
-                          <span className={`item-tag ${item.type}`}>{item.type==="income"?"รายรับ":"รายจ่าย"}</span>
+                          <span className={`item-tag ${item.type}`}>
+                            {item.type==="income"?"รายรับ":"รายจ่าย"}
+                          </span>
                         </div>
                       </div>
                       <div className="item-right">
                         <strong className={`item-amount ${item.type}`}>
-                          {item.type==="income"?"+":"-"}{fmt(item.amount)}
+                          {item.type==="income"?"+":"−"}{fmt(item.amount)}
                         </strong>
                         <div className="item-btns">
-                          <button className="ibtn" onClick={()=>startEdit(item.id)} aria-label={`แก้ไข ${item.text}`}>✎</button>
-                          <button className="ibtn ibtn-del" onClick={()=>remove(item.id)} aria-label={`ลบ ${item.text}`}>✕</button>
+                          <button className="ibtn" onClick={()=>startEdit(item.id)}
+                            aria-label={`แก้ไข ${item.text}`}>✎</button>
+                          <button className="ibtn ibtn-del" onClick={()=>remove(item.id)}
+                            aria-label={`ลบ ${item.text}`}>✕</button>
                         </div>
                       </div>
                     </article>
                   ))}
-                  {filtered.length===0 && (
+                  {filtered.length===0&&(
                     <div className="empty">
-                      <span>—</span>
-                      <p>ยังไม่มีรายการ</p>
+                      <span>◌</span>
+                      <p>ยังไม่มีรายการในวันนี้</p>
                     </div>
                   )}
                 </div>
