@@ -149,6 +149,7 @@
       background:rgba(255,255,255,.09);
     }
     input[type="month"]{ cursor:pointer; }
+    input::placeholder { color: var(--muted); opacity: 0.6; }
 
     /* Buttons */
     button {
@@ -184,6 +185,7 @@
       padding:9px 15px; border-radius:12px; font-weight:600; font-size:.83rem;
       backdrop-filter:blur(16px); border:1px solid transparent;
       animation:slideIn .2s ease; flex-shrink:0;
+      word-break: break-word; /* เพื่อไม่ให้ข้อความยาวเกิน */
     }
     .notice-success{ background:rgba(52,211,153,.12); border-color:rgba(52,211,153,.3); }
     .notice-error  { background:rgba(248,113,113,.12); border-color:rgba(248,113,113,.3); }
@@ -216,7 +218,7 @@
       background:rgba(56,189,248,.1); border:1px solid rgba(56,189,248,.2);
       font-size:.78rem;
     }
-    .edit-banner strong { color:var(--accent2); }
+    .edit-banner strong { color:var(--accent2); word-break: break-all; }
     .form-actions { display:flex; gap:7px; }
     .btn-income  { flex:1; background:linear-gradient(135deg,#16a34a,#34d399); border-color:rgba(52,211,153,.3); color:#fff; }
     .btn-expense { flex:1; background:linear-gradient(135deg,#be123c,#f87171); border-color:rgba(248,113,113,.3); color:#fff; }
@@ -354,11 +356,11 @@
   <div id="root"></div>
 
   <!-- React + Babel -->
-  <script src="[unpkg.com](https://unpkg.com/react@18/umd/react.development.js)"></script>
-  <script src="[unpkg.com](https://unpkg.com/react-dom@18/umd/react-dom.development.js)"></script>
+  <script src="[unpkg.com](https://unpkg.com/react@18.2.0/umd/react.development.js)"></script>
+  <script src="[unpkg.com](https://unpkg.com/react-dom@18.2.0/umd/react-dom.development.js)"></script>
   <script src="[unpkg.com](https://unpkg.com/@babel/standalone/babel.min.js)"></script>
   <!-- SheetJS -->
-  <script src="[cdn.sheetjs.com](https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js)"></script>
+  <script src="[unpkg.com](https://unpkg.com/xlsx/dist/xlsx.full.min.js)"></script>
 
   <script type="text/babel">
     const { useEffect, useMemo, useRef, useState, useReducer, useCallback } = React;
@@ -525,7 +527,7 @@
         setData(prev=>({...prev,[day]:dayItems}));
         dispatch({type:"RESET"});
         toast("success",form.editId?"อัปเดตเรียบร้อย":"บันทึกเรียบร้อย");
-      },[form,data,day]);
+      },[form.amount,form.editId,form.text,data,day]); // Added dependencies to useCallback
 
       /* start edit */
       const startEdit=useCallback((id)=>{
@@ -563,7 +565,10 @@
         ws["!cols"]=[{wch:16},{wch:28},{wch:12},{wch:20}];
         const wb=XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb,ws,monthLabel(month));
-        XLSX.writeFile(wb,`vault-${month}.xlsx`);
+        // Use current date for filename (good practice)
+        const date = new Date();
+        const filename = `vault-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}.xlsx`;
+        XLSX.writeFile(wb, filename);
       },[data,month]);
 
       /* ── JSX ── */
@@ -578,7 +583,7 @@
             </div>
 
             <button className="theme-btn" onClick={()=>setTheme(t=>t==="dark"?"light":"dark")}>
-              {theme==="dark"?"☀ Light":"☾ Dark"}
+              {theme==="dark"?"☀ Light Theme":"☾ Dark Theme"} {/* เปลี่ยนข้อความเป็นคำว่า Theme */}
             </button>
 
             <div className="balance-card">
@@ -595,7 +600,7 @@
               </div>
               <div className="side-stat">
                 <span>รายจ่ายรวม</span>
-                <strong className="c-red">-{fmt(totalOut)}</strong>
+                <strong className="c-red">−{fmt(totalOut)}</strong>
               </div>
               <div className="side-stat">
                 <span>วันที่มีรายการ</span>
